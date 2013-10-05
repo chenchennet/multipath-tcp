@@ -49,7 +49,7 @@ public:
 class_mptcp;
 
 MptcpAgent::MptcpAgent ():Agent (PT_TCP), sub_num_ (0), total_bytes_ (0),
-mcurseq_ (1), mackno_ (1)
+mcurseq_ (1), mackno_ (1), infinite_send_(false)
 {
 }
 
@@ -291,9 +291,10 @@ MptcpAgent::check_routable (int sid, int addr, int port)
 void
 MptcpAgent::sendmsg (int nbytes, const char * /*flags */ )
 {
-  if (nbytes == -1)
+  if (nbytes == -1) {
+    infinite_send_ = true;
     total_bytes_ = TCP_MAXSEQ;
-  else
+  } else
     total_bytes_ = nbytes;
   send_control ();
 }
@@ -304,7 +305,7 @@ MptcpAgent::sendmsg (int nbytes, const char * /*flags */ )
 void
 MptcpAgent::send_control ()
 {
-  if (total_bytes_ > 0) {
+  if (total_bytes_ > 0 && infinite_send_) {
     /* one round */
     bool slow_start = false;
     for (int i = 0; i < sub_num_; i++) {
@@ -347,13 +348,19 @@ MptcpAgent::send_control ()
       if (sendbytes > total_bytes_)
         sendbytes = total_bytes_;
 
-      if (sendbytes > mss) sendbytes = mss;
+      while(sendbytes >= mss) {
+        subflows_[i].tcp_->mptcp_add_mapping (mcurseq_, mss);
+        subflows_[i].tcp_->sendmsg (mss);
+        mcurseq_ += mss;
+        sendbytes -= mss;
+      }   
 
       subflows_[i].tcp_->mptcp_add_mapping (mcurseq_, sendbytes);
       subflows_[i].tcp_->sendmsg (sendbytes);
       mcurseq_ += sendbytes;
 
-      total_bytes_ -= sendbytes;
+	  if (!infinite_send_)
+        total_bytes_ -= sendbytes;
 
 #if 0
       if (!slow_start) {

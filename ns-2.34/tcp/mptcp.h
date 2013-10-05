@@ -111,6 +111,7 @@ protected:
   bool check_routable (int sid, int addr, int port);
 
   Classifier *core_;
+  bool infinite_send_;
   int sub_num_;
   int dst_num_;
   int total_bytes_;
