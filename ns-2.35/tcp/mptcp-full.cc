@@ -287,7 +287,7 @@ MpFullTcpAgent::mptcp_recv_add_mapping (int dseqnum, int sseqnum, int length)
 int
 MpFullTcpAgent::mptcp_recv_getack (int ackno)
 {
-  if (ackno == 1)
+  if (ackno <= 1)
     return 0;                   /* we don't receive any data */
   vector < dsn_mapping >::iterator it = mptcp_recv_dsnmap_.begin ();
   while (it != mptcp_recv_dsnmap_.end ()) {
@@ -326,17 +326,17 @@ MpFullTcpAgent::mptcp_remove_mapping (int seqnum)
 
 /*
  * open up the congestion window based on linked increase algorithm
- * in draft-ietf-mptcp-congestion-05
+ * in rfc6356
 
-   The logic in the draft is: 
+   The logic in the document is: 
      For each ack received on subflow i, increase cwnd_i by min
      (alpha*bytes_acked*mss_i/tot_cwnd , bytes_acked*mss_i/cwnd_i )
    
    Since ns-2's congestion control logic is packet base, the logic 
    in here is rather simplified. Please note the following difference from
    the original one.
-     o we don't use bytes_acked. use 1 packet size instead.
-     o we don't use mss_i. use 1 packet size instead.
+     o we don't use byte_acked. use increase_num_ instead. 
+     o we don't use mss_i. use 1 packet instead.
  *
  */
 void
@@ -356,22 +356,20 @@ MpFullTcpAgent::opencwnd ()
     double totalcwnd = mptcp_core_->get_totalcwnd ();
     if (totalcwnd > 0.1) {
 
-      // original increase logic 
+      // original increase logic. 
       double oincrement = increase_num_ / cwnd_;
+
       /*
         Subflow i will increase by alpha*cwnd_i/tot_cwnd segments per RTT.
       */
-      increment = increase_num_ / cwnd_ * (cwnd_ / totalcwnd) * alpha;
-      //increment = increase_num_ / cwnd_ * (cwnd_ / totalcwnd) * 0.5;
+      increment = increase_num_ / totalcwnd * alpha;
 
-      /*
-        we ensure that any multipath subflow cannot be more aggressive
-        than a TCP flow in the same circumstances 
-      */
       if (oincrement < increment) 
          increment = oincrement;
-    } else
-#endif
+      cwnd_ += increment;
+    }
+#else
+    // if totalcwnd is too small, use the following logic
     // original increase logic
     increment = increase_num_ / cwnd_;
 
@@ -380,6 +378,7 @@ MpFullTcpAgent::opencwnd ()
       increment = limited_slow_start (cwnd_, max_ssthresh_, increment);
     }
     cwnd_ += increment;
+#endif
   }
   // if maxcwnd_ is set (nonzero), make it the cwnd limit
   if (maxcwnd_ && (int (cwnd_) > maxcwnd_))

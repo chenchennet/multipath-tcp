@@ -80,7 +80,6 @@ public:
    ~MptcpAgent ()
   {
   };
-  void delay_bind_init_all ();
   void recv (Packet * pkt, Handler *);
   void set_dataack (int ackno, int length);
   int get_dataack ()
@@ -103,6 +102,8 @@ public:
   void calculate_alpha ();
   TracedInt curseq_;
 protected:
+  virtual void delay_bind_init_all();
+  virtual int delay_bind_dispatch(const char *varName, const char *localName, TclObject *tracer);
   int get_subnum ();
   int find_subflow (int addr, int port);
   int find_subflow (int addr);
@@ -117,6 +118,7 @@ protected:
   int total_bytes_;
   int mcurseq_;
   int mackno_;
+  int use_olia_;
   double totalcwnd_;
   double alpha_;
   struct subflow subflows_[MAX_SUBFLOW];

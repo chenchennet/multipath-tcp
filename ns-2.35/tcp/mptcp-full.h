@@ -51,10 +51,11 @@ struct dsn_mapping
   int sentseq;
 };
 
+// from RFC6824
 const int MPTCP_CAPABLEOPTION_SIZE = 12;
-const int MPTCP_JOINOPTION_SIZE = 7;
-const int MPTCP_ACKOPTION_SIZE = 10;
-const int MPTCP_DATAOPTION_SIZE = 16;
+const int MPTCP_JOINOPTION_SIZE = 16;
+const int MPTCP_ACKOPTION_SIZE = 20;
+const int MPTCP_DATAOPTION_SIZE = 20;
 
 class MpFullTcpAgent;
 
@@ -71,7 +72,7 @@ public:
   {
     if (fastrecov_){
         /* use ssthresh value for flows in fast retransmit
-           see Section 3 for draft-ietf-mptcp-congestion-05 */
+           see Section 3 for RFC6356 */
         return (double) ssthresh_;
     }
     return (double) cwnd_;

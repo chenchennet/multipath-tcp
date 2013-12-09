@@ -57,18 +57,20 @@ void
 MptcpAgent::delay_bind_init_all ()
 {
   Agent::delay_bind_init_all ();
+  delay_bind_init_one("use_olia_");
 }
 
 /* haven't implemented yet */
-#if 0
 int
-MptcpAgent::delay_bind_dispatch (const char *cpVarName,
-                                 const char *cpLocalName,
-                                 TclObject * opTracer)
+MptcpAgent::delay_bind_dispatch (const char *varName,
+                                 const char *localName,
+                                 TclObject * tracer)
 {
-  return Agent::delay_bind_dispatch (cpVarName, cpLocalName, opTracer);
+  if (delay_bind_bool(varName, localName, "use_olia_", &use_olia_, tracer)) return TCL_OK;
+  return Agent::delay_bind_dispatch (varName, localName, tracer);
 }
 
+#if 0
 void
 MptcpAgent::TraceAll ()
 {
@@ -296,6 +298,7 @@ MptcpAgent::sendmsg (int nbytes, const char * /*flags */ )
     total_bytes_ = TCP_MAXSEQ;
   } else
     total_bytes_ = nbytes;
+
   send_control ();
 }
 
@@ -348,16 +351,13 @@ MptcpAgent::send_control ()
       if (sendbytes > total_bytes_)
         sendbytes = total_bytes_;
 
+      //if (sendbytes > mss) sendbytes = mss;
       while(sendbytes >= mss) {
         subflows_[i].tcp_->mptcp_add_mapping (mcurseq_, mss);
         subflows_[i].tcp_->sendmsg (mss);
         mcurseq_ += mss;
         sendbytes -= mss;
-      }   
-
-      subflows_[i].tcp_->mptcp_add_mapping (mcurseq_, sendbytes);
-      subflows_[i].tcp_->sendmsg (sendbytes);
-      mcurseq_ += sendbytes;
+      }
 
 	  if (!infinite_send_)
         total_bytes_ -= sendbytes;
@@ -401,8 +401,7 @@ MptcpAgent::calculate_alpha ()
 {
   double max_i = 0.001;
   double sum_i = 0;
-  double avr_i = 0;
-  int totalcwnd = 0;
+  double totalcwnd = 0;
 
   for (int i = 0; i < sub_num_; i++) {
 #if 1
@@ -413,7 +412,7 @@ MptcpAgent::calculate_alpha ()
 #endif
 
     double rtt_i  = subflows_[i].tcp_->mptcp_get_srtt ();
-    int cwnd_i = (int)subflows_[i].tcp_->mptcp_get_cwnd ();
+    double cwnd_i = subflows_[i].tcp_->mptcp_get_cwnd ();
 
     if (rtt_i < 0.000001) // too small. Let's not update alpha
       return; 
@@ -421,7 +420,6 @@ MptcpAgent::calculate_alpha ()
     double tmp_i = cwnd_i / (rtt_i * rtt_i);
     if (max_i < tmp_i)
       max_i = tmp_i;
-    avr_i += tmp_i;
 
     sum_i += cwnd_i / rtt_i;
     totalcwnd += cwnd_i;
