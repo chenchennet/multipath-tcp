@@ -217,14 +217,11 @@ MpFullTcpAgent::sendpacket (int seqno, int ackno, int pflags, int datalen,
            if this is first transssion for this mapping or
            if this is retransmited packet, attach mapping 
          */
-        if (!p->sentseq || p->sentseq == seqno) {
-          tcph->mp_dsn () = p->dseqnum;
-          tcph->mp_subseq () = p->sseqnum;
-          tcph->mp_dsnlen () = p->length;
-          p->sentseq = seqno;
-          mptcp_option_size_ += MPTCP_DATAOPTION_SIZE;
-          break;
-        }
+        tcph->mp_dsn () = p->dseqnum;
+        tcph->mp_subseq () = p->sseqnum;
+        tcph->mp_dsnlen () = p->length;
+        mptcp_option_size_ += MPTCP_DATAOPTION_SIZE;
+        break;
       }
     }
   }
@@ -278,7 +275,7 @@ void
 MpFullTcpAgent::mptcp_recv_add_mapping (int dseqnum, int sseqnum, int length)
 {
   struct dsn_mapping tmp_map (dseqnum, sseqnum, length);
-  mptcp_recv_dsnmap_.push_back (tmp_map);
+  mptcp_core_->set_recvmapping (dseqnum, length);
 }
 
 /*
@@ -289,25 +286,8 @@ MpFullTcpAgent::mptcp_recv_getack (int ackno)
 {
   if (ackno <= 1)
     return 0;                   /* we don't receive any data */
-  vector < dsn_mapping >::iterator it = mptcp_recv_dsnmap_.begin ();
-  while (it != mptcp_recv_dsnmap_.end ()) {
-    struct dsn_mapping *p = &*it;
-
-    /* check if this is the mapping for this packet */
-    if (ackno >= p->sseqnum && ackno <= p->sseqnum + p->length) {
-      int offset = ackno - p->sseqnum;
-
-      mptcp_core_->set_dataack (p->dseqnum, offset);
-      return mptcp_core_->get_dataack ();
-    }
-    if (ackno > p->sseqnum + p->length) {
-      it = mptcp_recv_dsnmap_.erase (it);
-    }
-    else
-      ++it;
-  }
-  fprintf (stderr, "fatal. no mapping info was found. ackno %d\n", ackno);
-  abort ();
+  
+  return mptcp_core_->get_dataack ();
 }
 
 void

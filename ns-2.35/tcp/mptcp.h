@@ -65,9 +65,10 @@ struct dstinfo
   bool active_;
 };
 
-struct dack_mapping
+// mapping for received DSN
+struct recv_dsn_mapping
 {
-  int ackno;
+  int seqno;
   int length;
 };
 
@@ -81,8 +82,8 @@ public:
   {
   };
   void recv (Packet * pkt, Handler *);
-  void set_dataack (int ackno, int length);
-  int get_dataack ()
+  void set_recvmapping (int seqno, int length);
+  int get_dataack () 
   {
     return mackno_;
   }
@@ -123,5 +124,5 @@ protected:
   double alpha_;
   struct subflow subflows_[MAX_SUBFLOW];
   struct dstinfo dsts_[MAX_SUBFLOW];
-  vector < dack_mapping > dackmap_;
+  vector < recv_dsn_mapping > recvmap_;
 };

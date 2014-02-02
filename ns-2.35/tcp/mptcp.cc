@@ -434,39 +434,48 @@ MptcpAgent::calculate_alpha ()
  * create ack block based on data ack information
  */
 void
-MptcpAgent::set_dataack (int ackno, int length)
+MptcpAgent::set_recvmapping (int seqno, int length)
 {
   bool found = false;
-  vector < dack_mapping >::iterator it = dackmap_.begin ();
+  vector < recv_dsn_mapping >::iterator it = recvmap_.begin ();
 
-  while (it != dackmap_.end ()) {
-    struct dack_mapping *p = &*it;
+  while (it != recvmap_.end ()) {
+    struct recv_dsn_mapping *p = &*it;
 
     /* find matched block for this data */
-    if (p->ackno <= ackno && p->ackno + p->length >= ackno &&
-        p->ackno + p->length < ackno + length) {
-      p->length = ackno + length - p->ackno;
+    if ((p->seqno <= seqno && p->seqno + p->length >= seqno) || 
+       (p->seqno <= seqno + length && p->seqno + p->length  >= seqno + length)) {
+
+      // update matched block
+	  if (p->seqno > seqno) { 
+        p->length += p->seqno - seqno;
+        p->seqno = seqno;
+	  }
+	  if (p->seqno + p->length <= seqno + length) p->length = seqno + length - p->seqno;
       found = true;
       break;
     }
     else
       ++it;
   }
-
+  
   /* if there's no matching block, add new one */
   if (!found) {
-    struct dack_mapping tmp_map = { ackno, length };
-    dackmap_.push_back (tmp_map);
+    struct recv_dsn_mapping tmp_map = {seqno, length};
+    recvmap_.push_back (tmp_map);
   }
 
-  /* re-calculate cumlative ack and erase old records */
-  it = dackmap_.begin ();
-  while (it != dackmap_.end ()) {
-    struct dack_mapping *p = &*it;
-    if (mackno_ >= p->ackno && mackno_ <= p->ackno + p->length)
-      mackno_ = ackno + length;
-    if (mackno_ > p->ackno + p->length) {
-      it = dackmap_.erase (it);
+  /* re-calculate mackno_ and erase old records */
+  it = recvmap_.begin ();
+  while (it != recvmap_.end ()) {
+    struct recv_dsn_mapping *p = &*it;
+    if (mackno_ >= p->seqno && mackno_ <= p->seqno + p->length) {
+	  // this ackmap block covers the current mackno_ and also covers bigger number.
+	  if (mackno_ <= p->seqno + p->length)
+	     mackno_ = p->seqno + p->length;
+    }
+    if (mackno_ > p->seqno + p->length) {
+      it = recvmap_.erase (it);
     }
     else
       ++it;

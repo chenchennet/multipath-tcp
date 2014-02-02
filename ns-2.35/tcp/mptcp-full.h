@@ -39,16 +39,15 @@
 class MptcpAgent;
 struct dsn_mapping
 {
-  dsn_mapping (int dseq, int curseq, int len):sentseq (0)
+  dsn_mapping (int dseq, int curseq, int len)
   {
     dseqnum = dseq;
     sseqnum = curseq;
     length = len;
   }
-  int sseqnum;
-  int dseqnum;
-  int length;
-  int sentseq;
+  int sseqnum; // subflow level seqnum
+  int dseqnum; // data level seqnum
+  int length;  // length of mapping
 };
 
 // from RFC6824
@@ -151,7 +150,6 @@ protected:
   int mptcp_option_size_;
   int mptcp_last_cwnd_;
   vector < dsn_mapping > mptcp_dsnmap_;
-  vector < dsn_mapping > mptcp_recv_dsnmap_;
 };
 
 #endif
