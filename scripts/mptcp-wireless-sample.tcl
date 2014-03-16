@@ -61,8 +61,9 @@ set val(ifqlen)         50                         ;# max packet in ifq
 set val(nn)             4                          ;# number of mobilenodes
 #set val(rp)             DSDV                       ;# routing protocol
 set val(rp)             DSR                       ;# routing protocol
-set val(x)		500
-set val(y)		500
+set val(x)		300
+set val(y)		300
+
 
 #
 # specify to print mptcp option information
@@ -78,6 +79,9 @@ $ns_ trace-all $tracefd
 set topo       [new Topography]
 
 $topo load_flatgrid $val(x) $val(y)
+
+set namtrace [open out.nam w] 
+$ns_ namtrace-all-wireless $namtrace $val(x) $val(y)
 
 # Create God
 create-god $val(nn)
@@ -126,26 +130,26 @@ $node_(2) random-motion 0
 $node_(3) random-motion 0
 
 for {set i 0} {$i < $val(nn)} {incr i} {
-	$ns_ initial_node_pos $node_($i) 20
+	$ns_ initial_node_pos $node_($i) 15
 }
 
 #
 # Provide initial (X,Y, for now Z=0) co-ordinates for mobilenodes
 #
-$node_(0) set X_ 5.0
-$node_(0) set Y_ 2.0
+$node_(0) set X_ 50.0
+$node_(0) set Y_ 20.0
 $node_(0) set Z_ 0.0
 
-$node_(1) set X_ 6.0
-$node_(1) set Y_ 3.0
+$node_(1) set X_ 50.0
+$node_(1) set Y_ 60.0
 $node_(1) set Z_ 0.0
 
-$node_(2) set X_ 18.0
-$node_(2) set Y_ 15.0
+$node_(2) set X_ 100.0
+$node_(2) set Y_ 20.0
 $node_(2) set Z_ 0.0
 
-$node_(3) set X_ 19.0
-$node_(2) set Y_ 16.0
+$node_(3) set X_ 100.0
+$node_(3) set Y_ 60.0
 $node_(3) set Z_ 0.0
 
 # Setup traffic flow between nodes
@@ -158,10 +162,22 @@ $node_(3) set Z_ 0.0
 set n0 [$ns_ node]
 $ns_ multihome-add-interface $n0 $node_(0)
 $ns_ multihome-add-interface $n0 $node_(1)
+$n0 set X_ 20.0
+$n0 set Y_ 40.0
+$n0 set Z_ 0.0
+$n0 color red
+$ns_ initial_node_pos $n0 20
+
+# Setup traffic flow between nodes
 
 set n1 [$ns_ node]
 $ns_ multihome-add-interface $n1 $node_(2)
 $ns_ multihome-add-interface $n1 $node_(3)
+$n1 set X_ 130.0
+$n1 set Y_ 40.0
+$n1 set Z_ 0.0
+$n1 color blue
+$ns_ initial_node_pos $n1 20
 
 #
 # create mptcp sender
@@ -209,6 +225,24 @@ proc stop {} {
     close $tracefd
 }
 
+proc init_nodes {} {
+	global n0 n1 node_
+	$n0 color blue
+	$n1 color red
+	$n1 setdest 230 240 10
+	$node_(2) setdest 200 220 10
+	$node_(3) setdest 200 260 10
+}
+
+proc reset_nodes {} {
+	global n0 n1 node_
+	$n1 setdest 130 40 5
+	$node_(2) setdest 100 20 5
+	$node_(3) setdest 100 60 5
+}
+
 puts "Starting Simulation..."
+$ns_ at 0 "init_nodes"
+$ns_ at 150 "reset_nodes"
 $ns_ at 0.1 "$ftp start" 
 $ns_ run
